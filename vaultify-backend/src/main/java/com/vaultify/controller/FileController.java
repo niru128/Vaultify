@@ -1,6 +1,5 @@
 package com.vaultify.controller;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,14 +24,12 @@ import com.vaultify.model.FileRecord;
 import com.vaultify.repository.FileRecordRepository;
 import com.vaultify.service.SupabaseStorageService;
 
-
 @RestController
 @RequestMapping("/api/files")
 public class FileController {
 
     private final FileRecordRepository fileRecordRepository;
     private final SupabaseStorageService supabaseStorageService;
-
 
     public FileController(FileRecordRepository fileRecordRepository, SupabaseStorageService supabaseStorageService) {
         this.fileRecordRepository = fileRecordRepository;
@@ -72,21 +69,18 @@ public class FileController {
 
         String email = authentication.getName();
 
-        FileRecord record = fileRecordRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
+        FileRecord record = fileRecordRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("File not found"));
 
         if (!record.getOwnerEmail().equals(email)) {
             throw new RuntimeException("Unauthorized");
         }
 
-        File file = new File(record.getFilePath());
-
-        if (file.exists()) {
-            file.delete();
-        }
+        supabaseStorageService.deleteFile(record.getFilePath());
 
         fileRecordRepository.delete(record);
 
-        return "File deleted Successfully";
+        return "Deleted from Supabase + DB successfully";
     }
 
     @GetMapping("/{id}/download")
@@ -113,6 +107,19 @@ public class FileController {
                 .body(resource);
     }
 
+    @GetMapping("{id}/download-link")
+    public String getSignedLink(@PathVariable Long id, Authentication authentication) {
 
+        String email = authentication.getName();
+
+        FileRecord record = fileRecordRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("File not found"));
+
+        if (!record.getOwnerEmail().equals(email)) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        return supabaseStorageService.generateSignedUrl(record.getFilePath());
+    }
 
 }
