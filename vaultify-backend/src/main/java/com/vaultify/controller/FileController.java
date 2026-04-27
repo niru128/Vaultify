@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.core.io.Resource;
@@ -22,15 +23,20 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.vaultify.model.FileRecord;
 import com.vaultify.repository.FileRecordRepository;
+import com.vaultify.service.SupabaseStorageService;
+
 
 @RestController
 @RequestMapping("/api/files")
 public class FileController {
 
     private final FileRecordRepository fileRecordRepository;
+    private final SupabaseStorageService supabaseStorageService;
 
-    public FileController(FileRecordRepository fileRecordRepository) {
+
+    public FileController(FileRecordRepository fileRecordRepository, SupabaseStorageService supabaseStorageService) {
         this.fileRecordRepository = fileRecordRepository;
+        this.supabaseStorageService = supabaseStorageService;
     }
 
     @PostMapping("/upload")
@@ -41,27 +47,18 @@ public class FileController {
 
         String email = authentication.getName();
 
-        String uploadDir = System.getProperty("user.dir") + "/uploads/";
-
-        File folder = new File(uploadDir);
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
-
-        String filePath = uploadDir + file.getOriginalFilename();
-
-        file.transferTo(new File(filePath));
+        String fileName = supabaseStorageService.uploadFile(file);
 
         FileRecord record = new FileRecord();
-        record.setFileName(file.getOriginalFilename());
-        record.setFilePath(filePath);
-        record.setOwnerEmail(email);
+        record.setFileName(fileName);
+        record.setFilePath(fileName);
         record.setSize(file.getSize());
-        record.setUploadTime(java.time.LocalDateTime.now());
+        record.setOwnerEmail(email);
+        record.setUploadTime(LocalDateTime.now());
 
         fileRecordRepository.save(record);
 
-        return "File uploaded + metadata saved";
+        return "File uploaded successfully to Supabase with name: " + fileName;
     }
 
     @GetMapping("/my-files")
@@ -115,4 +112,7 @@ public class FileController {
                         "attachment; filename=\"" + record.getFileName() + "\"")
                 .body(resource);
     }
+
+
+
 }
