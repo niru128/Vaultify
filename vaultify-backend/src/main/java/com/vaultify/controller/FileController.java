@@ -47,7 +47,7 @@ public class FileController {
         String fileName = supabaseStorageService.uploadFile(file);
 
         FileRecord record = new FileRecord();
-        record.setFileName(fileName);
+        record.setFileName(file.getOriginalFilename());
         record.setFilePath(fileName);
         record.setSize(file.getSize());
         record.setOwnerEmail(email);

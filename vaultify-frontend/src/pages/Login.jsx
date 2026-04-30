@@ -24,7 +24,7 @@ export default function Login() {
             const response = await API.post(url, payload);
 
             if (isLogin) {
-                localStorage.setItem('token', response.data);
+                localStorage.setItem('token', response.data.token);
                 toast.success("Login successful!");
                 navigate('/dashboard');
             } else {
@@ -33,7 +33,7 @@ export default function Login() {
             }
 
         } catch (error) {
-            console.log("Login failed: ", error);
+            console.log("Login failed : Invalid credentials ", error);
             toast.error(isLogin ? "Login failed!" : "Registration failed!");
         }
     }
