@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import static org.springframework.security.config.Customizer.withDefaults;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -58,6 +59,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
+            .cors(withDefaults())
             .csrf(csrf -> csrf.disable())
 
             .formLogin(form -> form.disable())
@@ -68,25 +70,26 @@ public class SecurityConfig {
             )
 
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                .requestMatchers("/error").permitAll()
-                .anyRequest().authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                    .requestMatchers("/error").permitAll()
+                    .anyRequest().authenticated()
             )
 
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
             .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((req, res, e) -> {
-                    res.setStatus(401);
-                    res.getWriter().write("Unauthorized");
-                })
-                .accessDeniedHandler((req, res, e) -> {
-                    res.setStatus(403);
-                    res.getWriter().write("Forbidden");
-                })
+                    .authenticationEntryPoint((req, res, e) -> {
+                        res.setStatus(401);
+                        res.getWriter().write("Unauthorized");
+                    })
+                    .accessDeniedHandler((req, res, e) -> {
+                        res.setStatus(403);
+                        res.getWriter().write("Forbidden");
+                    })
             );
 
         return http.build();
     }
+
 }
