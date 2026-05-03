@@ -30,15 +30,18 @@ public class FileController {
 
     private final FileRecordRepository fileRecordRepository;
     private final SupabaseStorageService supabaseStorageService;
+    // private final FolderRepository folderRepository;
 
     public FileController(FileRecordRepository fileRecordRepository, SupabaseStorageService supabaseStorageService) {
         this.fileRecordRepository = fileRecordRepository;
         this.supabaseStorageService = supabaseStorageService;
+        // this.folderRepository = folderRepository;
     }
 
     @PostMapping("/upload")
     public String uploadFile(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) Long folderId,
             Authentication authentication
     ) throws IOException {
 
@@ -51,6 +54,7 @@ public class FileController {
         record.setFilePath(fileName);
         record.setSize(file.getSize());
         record.setOwnerEmail(email);
+        record.setFolderId(folderId);
         record.setUploadTime(LocalDateTime.now());
 
         fileRecordRepository.save(record);
@@ -59,9 +63,15 @@ public class FileController {
     }
 
     @GetMapping("/my-files")
-    public List<FileRecord> getMyFiles(Authentication authentication) {
+    public List<FileRecord> getMyFiles(@RequestParam(required = false) Long folderId, Authentication authentication) {
         String email = authentication.getName();
-        return fileRecordRepository.findByOwnerEmail(email);
+
+        if (folderId == null) {
+
+            return fileRecordRepository.findByOwnerEmailAndFolderIdIsNull(email);
+        }
+
+        return fileRecordRepository.findByOwnerEmailAndFolderId(email, folderId);
     }
 
     @DeleteMapping("/{id}")

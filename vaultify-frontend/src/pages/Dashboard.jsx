@@ -11,21 +11,52 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [folder, setFolder] = useState([]);
+  const [activeFolder, setActiveFolder] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [folderName, setFolderName] = useState("");
+
+
+  const totalSize = files.reduce((acc, file) => acc + file.size, 0);
+  const used = (totalSize / (1024 * 1024)).toFixed(2);
+  const limitMB = 1024;
+  const percentageUsed = (used / limitMB) * 100;
 
   useEffect(() => {
     fetchFiles();
+    fetchFolders();
   }, [])
 
   const fetchFiles = async () => {
     try {
 
-      const response = await api.get('/files/my-files');
+      const response = await api.get('/files/my-files', {
+        params: {
+          folderId: activeFolder
+        }
+      });
       setFiles(response.data);
 
     } catch (error) {
       console.log("Error fetching files: ", error);
     }
   }
+
+  const fetchFolders = async () => {
+    try {
+
+      const response = await api.get("/folders");
+      setFolder(response.data);
+
+    } catch (error) {
+      console.log("Error fetching folders: ", error);
+    }
+  }
+
+  useEffect(() => {
+    fetchFiles();
+  }, [activeFolder])
 
   const handleFileChange = async (e) => {
     setSelectedFile(e.target.files[0]);
@@ -43,6 +74,10 @@ export default function Dashboard() {
 
       const formData = new FormData();
       formData.append("file", selectedFile);
+      // formData.append("folderId", activeFolder);
+      if (activeFolder !== null) {
+        formData.append("folderId", activeFolder);
+      }
 
       await api.post("/files/upload", formData);
       toast.success("File uploaded successfully!");
@@ -58,6 +93,24 @@ export default function Dashboard() {
     }
 
   }
+
+  const createFolder = async () => {
+    // const name = prompt("Enter folder name:");
+
+    //  Better validation
+    if (!name || name.trim() === "") {
+      return toast.error("Folder name is required");
+    }
+
+    try {
+      await api.post("/folders", { name: name.trim() });
+      toast.success("Folder created successfully!");
+      fetchFolders();
+    } catch (error) {
+      console.log("Error creating folder: ", error);
+      toast.error("Folder creation failed!");
+    }
+  };
 
   const handleDelete = async (id) => {
     try {
@@ -83,6 +136,20 @@ export default function Dashboard() {
       toast.error("File download failed!");
     }
   }
+
+  const handleDeleteFolder = async (id) => {
+    try {
+      await api.delete(`/folders/${id}`);
+      toast.success("Folder deleted");
+
+      setActiveFolder(null);
+      fetchFolders();
+      fetchFiles();
+
+    } catch (err) {
+      toast.error("Failed to delete folder");
+    }
+  };
 
 
   const handleLogout = () => {
@@ -129,7 +196,8 @@ export default function Dashboard() {
       </div>
 
       <div className="flex h-[calc(100vh-80px)] mt-1">
-        <div className="w-1/3 flex flex-col border-r bg-white/60 backdrop-blur-md gap-6 p-6">
+        <div className="w-1/3 flex flex-col border-r bg-white/60 backdrop-blur-md gap-6 p-6 
+                overflow-y-auto custom-scroll max-h-full">
 
           <h2 className="text-xl font-semibold text-gray-800">Actions</h2>
 
@@ -156,34 +224,124 @@ export default function Dashboard() {
 
           </div>
 
+          {/* Folder Section */}
+          <div className="bg-white rounded-xl p-5 shadow-md border border-gray-200">
+
+            <div className="flex justify-between items-center mb-3">
+              <p className="font-semibold text-gray-700">Folders</p>
+              <button
+                onClick={() => setShowModal(true)}
+                className="text-blue-500 text-lg font-bold cursor-pointer hover:text-blue-700 transition"
+              >
+                +
+              </button>
+            </div>
+
+            {/* All Files */}
+            <div
+              onClick={() => setActiveFolder(null)}
+              className={`p-2 rounded cursor-pointer ${activeFolder === null ? "bg-blue-100" : "hover:bg-gray-100"
+                }`}
+            >
+              📂 All Files
+            </div>
+
+            {/* Folder List */}
+            {folder.map((f) => (
+              <div
+                key={f.id}
+                className="flex justify-between items-center p-2 rounded hover:bg-gray-100 relative"
+              >
+                {/* Folder Name */}
+                <span
+                  onClick={() => setActiveFolder(f.id)}
+                  className="cursor-pointer flex-1"
+                >
+                  📁 {f.name}
+                </span>
+
+                {/* 3-dot button */}
+                <button
+                  onClick={() =>
+                    setOpenMenuId(openMenuId === f.id ? null : f.id)
+                  }
+                  className="text-gray-500 hover:text-black px-2 py-1 rounded-full hover:bg-gray-200"
+                >
+                  ⋮
+                </button>
+
+                {/* Dropdown */}
+                {openMenuId === f.id && (
+                  <div className="absolute right-2 top-10 w-32 bg-white shadow-lg rounded-lg border z-10">
+
+                    <button
+                      onClick={() => {
+                        handleDeleteFolder(f.id);
+                        setOpenMenuId(null);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+
+                    {/* Future feature */}
+                    {/* 
+        <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100">
+          Rename
+        </button> 
+        */}
+
+                  </div>
+                )}
+              </div>
+            ))}
+
+          </div>
+
           {/* Storage Card */}
           <div className="bg-white rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition">
 
             <p className="font-semibold text-gray-700 mb-3">Storage</p>
 
-            <p className="text-sm text-gray-500 mb-2">120mb / 1GB</p>
+            <p className="text-sm text-gray-500 mb-2">
+              {used} MB / {limitMB} MB
+            </p>
 
-            {/* Progress bar */}
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 w-[12%]"></div>
+              <div
+                className="h-full bg-blue-500 transition-all duration-300"
+                style={{ width: `${percentageUsed}%` }}
+              ></div>
             </div>
 
           </div>
 
-        </div>
-        <div className="w-2/3 p-6">
-          <h2 className="text-xl font-bold mb-5 text-gray-800">My Files</h2>
 
-          <div className="space-y-3">
+
+        </div>
+        <div className="w-2/3 p-6 overflow-y-auto custom-scroll">
+          <h2 className="text-xl font-bold mb-5 text-gray-800">My Files</h2>
+          <div className="sticky top-0  z-10 pb-2">
+            <input
+              type="text"
+              placeholder="Search files..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="mb-4 w-full px-4 py-2 border-2 border-white rounded-lg focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+
+          <div className="space-y-3 min-h-[65vh] overflow-y-auto pr-2 custom-scroll">
             {files.length === 0 ? (
               <p className="text-gray-400 text-center py-6">No files yet</p>
             ) : (
-              files.map((file) => (
+              files.filter((file) => file.fileName.toLowerCase().includes(search.toLowerCase())).map((file) => (
                 <div
                   key={file.id}
                   className="flex items-center justify-between bg-white rounded-2xl px-2 py-2
                      shadow-sm hover:shadow-md hover:-translate-y-0.5
                      transition-all duration-200 border border-gray-100"
+
                 >
                   {/* LEFT SIDE */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -245,6 +403,57 @@ export default function Dashboard() {
         </div>
 
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+
+          <div className="bg-white rounded-xl p-6 w-80 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4">Create Folder</h3>
+
+            <input
+              type="text"
+              placeholder="Folder name..."
+              value={folderName}
+              onChange={(e) => setFolderName(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-400"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setFolderName("");
+                }}
+                className="px-3 py-1.5 text-gray-500 hover:text-black"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (!folderName.trim()) {
+                    return toast.error("Folder name is required");
+                  }
+
+                  try {
+                    await api.post("/folders", { name: folderName.trim() });
+                    toast.success("Folder created!");
+                    setShowModal(false);
+                    setFolderName("");
+                    fetchFolders();
+                  } catch (err) {
+                    toast.error("Failed to create folder");
+                  }
+                }}
+                className="bg-blue-500 text-white px-4 py-1.5 rounded-lg hover:opacity-80"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

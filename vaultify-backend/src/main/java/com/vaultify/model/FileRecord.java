@@ -23,9 +23,17 @@ public class FileRecord {
     private Long id;
     private String fileName;
     private String filePath;
+    private Long folderId;
     private String ownerEmail;
     private Long size;
     private LocalDateTime uploadTime;
     
+    public Long getFolderId(){
+        return folderId;
+    }
+
+    public void setFolderId(Long folderId){
+        this.folderId = folderId;
+    }
     
 }
