@@ -27,6 +27,8 @@ public class FileRecord {
     private String ownerEmail;
     private Long size;
     private LocalDateTime uploadTime;
+    private Boolean isProtected = false;
+    private String filePasswordHash;
     
     public Long getFolderId(){
         return folderId;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
 import toast from 'react-hot-toast';
+import SecurityPage from './SecurityPage.jsx';
 
 export default function Dashboard() {
 
@@ -16,6 +17,8 @@ export default function Dashboard() {
   const [activeFolder, setActiveFolder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [folderName, setFolderName] = useState("");
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
+  // const [selectedFile, setSelectedFile] = useState(null);
 
 
   const totalSize = files.reduce((acc, file) => acc + file.size, 0);
@@ -42,6 +45,10 @@ export default function Dashboard() {
       console.log("Error fetching files: ", error);
     }
   }
+
+  const getFileType = (name) => {
+  return name.split('.').pop().toUpperCase();
+};
 
   const fetchFolders = async () => {
     try {
@@ -97,13 +104,12 @@ export default function Dashboard() {
   const createFolder = async () => {
     // const name = prompt("Enter folder name:");
 
-    //  Better validation
-    if (!name || name.trim() === "") {
+    if (!folderName || folderName.trim() === "") {
       return toast.error("Folder name is required");
     }
 
     try {
-      await api.post("/folders", { name: name.trim() });
+      await api.post("/folders", { folderName : folderName.trim() });
       toast.success("Folder created successfully!");
       fetchFolders();
     } catch (error) {
@@ -112,30 +118,47 @@ export default function Dashboard() {
     }
   };
 
-  const handleDelete = async (id) => {
-    try {
+  const handleDelete = async (file) => {
 
-      await api.delete(`/files/${id}`);
-      toast.success("File deleted successfully!");
-      setOpenMenuId(null);
+    let password = "";
+
+    if (file.isProtected) {
+      password = prompt("Enter file password");
+      if (!password) return;
+    }
+
+    try {
+      await api.delete(`/files/${file.id}`, {
+        params: { password }
+      });
+
+      toast.success("Deleted");
       fetchFiles();
-    } catch (error) {
-      console.log("Error deleting file: ", error);
-      toast.error("File deletion failed!");
-    }
-  }
 
-  const handleDownload = async (id) => {
+    } catch {
+      toast.error("Wrong password");
+    }
+  };
+  const handleDownload = async (file) => {
+
+    let password = "";
+
+    if (file.isProtected) {
+      password = prompt("Enter file password");
+      if (!password) return;
+    }
+
     try {
-      const res = await api.get(`/files/${id}/download-link`);
-      setOpenMenuId(null);
-      window.open(res.data, '_blank');
+      const res = await api.get(`/files/${file.id}/download-link`, {
+        params: { password }
+      });
 
-    } catch (error) {
-      console.log("Error downloading file: ", error);
-      toast.error("File download failed!");
+      window.open(res.data, "_blank");
+
+    } catch {
+      toast.error("Wrong password");
     }
-  }
+  };
 
   const handleDeleteFolder = async (id) => {
     try {
@@ -181,7 +204,8 @@ export default function Dashboard() {
           </div>
 
           {open && (
-            <div className="absolute right-0 top-10 w-32 bg-white shadow-lg rounded-lg p-2 border border-gray-200">
+            <div className="absolute right-0 top-10 w-50 bg-white shadow-lg rounded-lg p-2 border border-gray-200">
+
               <button
                 onClick={handleLogout}
                 className="w-full text-left text-md font-medium text-red-500 hover:cursor-pointer px-3 py-1.5 rounded-md transition hover:text-red-700"
@@ -348,7 +372,7 @@ export default function Dashboard() {
 
                     {/* File Icon */}
                     <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-500 font-bold">
-                      PDF
+                      {getFileType(file.fileName)}
                     </div>
 
                     {/* File Info */}
@@ -381,14 +405,24 @@ export default function Dashboard() {
                               overflow-hidden animate-fade-in z-10 cursor-pointer">
 
                         <button
-                          onClick={() => handleDownload(file.id)}
+                          onClick={() => {
+                            setSelectedFile(file);
+                            setShowSecurityModal(true);
+                          }}
+                          className=" w-full text-left px-3 py-1.5 cursor-pointer text-md font-medium text-gray-700 rounded-md transition hover:text-gray-900"
+                        >
+                          Enable Security
+                        </button>
+
+                        <button
+                          onClick={() => handleDownload(file)}
                           className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
                         >
                           Download
                         </button>
 
                         <button
-                          onClick={() => handleDelete(file.id)}
+                          onClick={() => handleDelete(file)}
                           className="w-full text-left px-4 py-2 cursor-pointer text-sm hover:bg-red-50 text-red-500"
                         >
                           Delete
@@ -453,6 +487,14 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {showSecurityModal &&
+        (
+          <SecurityPage selectedFile={selectedFile}
+            onClose={() => setShowSecurityModal(false)}
+            onSuccess={fetchFiles} />
+        )
+      }
 
     </div>
   )
