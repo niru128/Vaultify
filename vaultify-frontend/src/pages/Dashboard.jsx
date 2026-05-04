@@ -18,7 +18,10 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [showSecurityModal, setShowSecurityModal] = useState(false);
-  // const [selectedFile, setSelectedFile] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState("");
+  const [actionType, setActionType] = useState(""); // "delete" | "download"
+  const [user , setUser] = useState(null);
 
 
   const totalSize = files.reduce((acc, file) => acc + file.size, 0);
@@ -29,7 +32,21 @@ export default function Dashboard() {
   useEffect(() => {
     fetchFiles();
     fetchFolders();
+    fetchUser();
   }, [])
+
+  const fetchUser = async () => {
+  try {
+    const res = await api.get("/user/me"); // adjust endpoint if needed
+    setUser(res.data);
+  } catch (err) {
+    console.log("Error fetching user:", err);
+  }
+};
+
+const getInitial = (name) => {
+  return name ? name.charAt(0).toUpperCase() : "U";
+};
 
   const fetchFiles = async () => {
     try {
@@ -47,8 +64,8 @@ export default function Dashboard() {
   }
 
   const getFileType = (name) => {
-  return name.split('.').pop().toUpperCase();
-};
+    return name.split('.').pop().toUpperCase();
+  };
 
   const fetchFolders = async () => {
     try {
@@ -109,7 +126,7 @@ export default function Dashboard() {
     }
 
     try {
-      await api.post("/folders", { folderName : folderName.trim() });
+      await api.post("/folders", { folderName: folderName.trim() });
       toast.success("Folder created successfully!");
       fetchFolders();
     } catch (error) {
@@ -119,14 +136,28 @@ export default function Dashboard() {
   };
 
   const handleDelete = async (file) => {
-
-    let password = "";
-
     if (file.isProtected) {
-      password = prompt("Enter file password");
-      if (!password) return;
+      setSelectedFile(file);
+      setActionType("delete");
+      setShowPasswordModal(true);
+      return;
     }
 
+    await deleteFile(file, "");
+  };
+
+  const handleDownload = async (file) => {
+    if (file.isProtected) {
+      setSelectedFile(file);
+      setActionType("download");
+      setShowPasswordModal(true);
+      return;
+    }
+
+    await downloadFile(file, "");
+  };
+
+  const deleteFile = async (file, password) => {
     try {
       await api.delete(`/files/${file.id}`, {
         params: { password }
@@ -134,27 +165,50 @@ export default function Dashboard() {
 
       toast.success("Deleted");
       fetchFiles();
-
     } catch {
       toast.error("Wrong password");
     }
   };
-  const handleDownload = async (file) => {
 
-    let password = "";
-
-    if (file.isProtected) {
-      password = prompt("Enter file password");
-      if (!password) return;
-    }
-
+  const downloadFile = async (file, password) => {
     try {
       const res = await api.get(`/files/${file.id}/download-link`, {
         params: { password }
       });
 
       window.open(res.data, "_blank");
+    } catch {
+      toast.error("Wrong password");
+    }
+  };
 
+  const handleConfirmPassword = async () => {
+    if (!password) return;
+
+    if (actionType === "delete") {
+      await deleteFile(selectedFile, password);
+    } else {
+      await downloadFile(selectedFile, password);
+    }
+
+    setShowPasswordModal(false);
+    setPassword("");
+  };
+
+  const handleDisableSecurity = async (file) => {
+    let password = "";
+
+    // Optional: ask password before disabling
+    password = prompt("Enter file password to disable security");
+    if (!password) return;
+
+    try {
+      await api.post(`/files/${file.id}/disable-security`, {
+        password
+      });
+
+      toast.success("Security removed");
+      fetchFiles();
     } catch {
       toast.error("Wrong password");
     }
@@ -197,11 +251,19 @@ export default function Dashboard() {
         <div className='relative flex items-center gap-2'>
 
           <div
-            onClick={() => setOpen(!open)}
-            className="w-8 h-8 bg-blue-500 text-white flex items-center justify-center rounded-full cursor-pointer hover:scale-105 transition"
-          >
-            U
-          </div>
+  onClick={() => setOpen(!open)}
+  className="flex items-center gap-2 cursor-pointer"
+>
+  {/* Avatar */}
+  <div className="w-9 h-9 bg-blue-500 text-white flex items-center justify-center rounded-full font-semibold">
+    {getInitial(user?.name)}
+  </div>
+
+  {/* Name */}
+  <span className="text-sm font-medium text-gray-700 hidden sm:block">
+    {user?.name || "User"}
+  </span>
+</div>
 
           {open && (
             <div className="absolute right-0 top-10 w-50 bg-white shadow-lg rounded-lg p-2 border border-gray-200">
@@ -407,11 +469,18 @@ export default function Dashboard() {
                         <button
                           onClick={() => {
                             setSelectedFile(file);
-                            setShowSecurityModal(true);
+
+                            if (file.isProtected) {
+                              handleDisableSecurity(file);
+                            } else {
+                              setShowSecurityModal(true); // existing flow
+                            }
+
+                            setOpenMenuId(null);
                           }}
                           className=" w-full text-left px-3 py-1.5 cursor-pointer text-md font-medium text-gray-700 rounded-md transition hover:text-gray-900"
                         >
-                          Enable Security
+                          {file.isProtected ? "Disable Security" : "Enable Security"}
                         </button>
 
                         <button
@@ -495,6 +564,42 @@ export default function Dashboard() {
             onSuccess={fetchFiles} />
         )
       }
+
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+
+          <div className="bg-white rounded-xl p-6 w-80 shadow-lg">
+            <h3 className="text-lg font-semibold mb-4">Enter Password</h3>
+
+            <input
+              type="password"
+              placeholder="File password..."
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-400"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPassword("");
+                }}
+                className="px-3 py-1.5 text-gray-500 hover:text-black"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleConfirmPassword}
+                className="bg-blue-500 text-white px-4 py-1.5 rounded-lg hover:opacity-80"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
