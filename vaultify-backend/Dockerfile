@@ -11,4 +11,4 @@ RUN mvn clean package -DskipTests
 RUN cp target/*.jar app.jar
 
 # run the app
-CMD ["java", "-jar", "app.jar"]
+CMD ["java", "-jar", "app.jar","--spring.config.location=classpath:/application.properties"]
