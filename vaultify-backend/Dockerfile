@@ -7,5 +7,8 @@ COPY . .
 # build the jar
 RUN mvn clean package -DskipTests
 
+# copy jar to a fixed name
+RUN cp target/*.jar app.jar
+
 # run the app
-CMD ["java", "-jar", "target/*.jar"]
+CMD ["java", "-jar", "app.jar"]
