@@ -1,14 +1,14 @@
-FROM maven:3.9.9-eclipse-temurin-21
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
-
 COPY . .
-
-# build the jar
 RUN mvn clean package -DskipTests
 
-# copy jar to a fixed name
-RUN cp target/*.jar app.jar
+FROM eclipse-temurin:21-jdk
 
-# run the app
-CMD ["java", "-jar", "app.jar","--spring.config.location=classpath:/application.properties"]
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+
+EXPOSE 8082
+
+CMD ["java", "-jar", "app.jar"]
