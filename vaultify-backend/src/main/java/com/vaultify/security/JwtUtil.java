@@ -10,19 +10,26 @@ import org.springframework.stereotype.Component;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
+    @Value("${JWT_SECRET}")   // 👈 match Render env
     private String SECRET;
-    private final SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes());
+
+    private SecretKey key;
+
+    @PostConstruct
+    public void init() {
+        key = Keys.hmacShaKeyFor(SECRET.getBytes());
+    }
 
     public String generateToken(String email){
         return Jwts.builder()
         .setSubject(email)
         .setIssuedAt(new Date())
-        .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 hours
+        .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10))
         .signWith(key, SignatureAlgorithm.HS256)
         .compact();
     }
@@ -35,6 +42,4 @@ public class JwtUtil {
         .getBody()
         .getSubject();
     }
-
-    
 }
