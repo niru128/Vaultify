@@ -4,6 +4,7 @@ import java.util.Date;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Jwts;
@@ -13,7 +14,8 @@ import io.jsonwebtoken.security.Keys;
 @Component
 public class JwtUtil {
 
-    private final String SECRET = "F3q4f2534!#@Y%GV$@%#$YRHWEW!@EF3q4f2534!#@Y%GV$@%#$YRHWEW!@E"; // 64 characters for HS256
+    @Value("${jwt.secret}")
+    private String SECRET;
     private final SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes());
 
     public String generateToken(String email){

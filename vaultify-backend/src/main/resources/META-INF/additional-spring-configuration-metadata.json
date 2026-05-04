@@ -13,5 +13,10 @@
     "name": "supabase.key",
     "type": "java.lang.String",
     "description": "A description for 'supabase.key'"
+  },
+  {
+    "name": "jwt.secret",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.secret'"
   }
 ]}
