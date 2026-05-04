@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:8082/api',
+    baseURL: 'https://vaultify-3-lqaa.onrender.com/api',
 })
 
 api.interceptors.request.use(config => {
