@@ -15,7 +15,7 @@ import jakarta.annotation.PostConstruct;
 @Component
 public class JwtUtil {
 
-    @Value("${JWT_SECRET}")   // 👈 match Render env
+    @Value("${jwt.secret}")   // 👈 match Render env
     private String SECRET;
 
     private SecretKey key;
